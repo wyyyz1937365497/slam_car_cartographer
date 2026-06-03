@@ -28,23 +28,9 @@ Node(
         '0.06',  # x平移（前方60mm，+0.06m）
         '0',     # y平移（中心线上，0m）
         '0.134',     # z平移（高度一致，0m）
-        '0',  # roll（绕x轴180°，弧度）
+        '0',  # roll（绕x轴0°，弧度）
         '0',     # pitch（绕y轴0°）
-        '0',     # yaw（绕z轴0°）
-        'base_link',  # 父坐标系（底盘）
-        'laser_link'  # 子坐标系（雷达）
-    ]
-),
-Node(
-    package='tf2_ros',
-    executable='static_transform_publisher',
-    arguments=[
-        '0.06',  # x平移（前方60mm，+0.06m）
-        '0',     # y平移（中心线上，0m）
-        '0.134',     # z平移（高度一致，0m）
-        '0',  # roll（绕x轴180°，弧度）
-        '0',     # pitch（绕y轴0°）
-        '0',     # yaw（绕z轴0°）
+        '3.1416',     # yaw（绕z轴0°）
         'base_link',  # 父坐标系
         'laser_frame' # 子坐标系
     ]
