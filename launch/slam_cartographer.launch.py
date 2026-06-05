@@ -7,36 +7,55 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    # ⚠️ 务必修改为你刚才创建的 slam_car.lua 的绝对路径
+    # ⚠️ 务必修改为你实际 slam_car.lua 的绝对路径
     configuration_directory = '/home/wyyyz/TJ/ROS_SLAM/ylidar/slam_car_cartographer/config'
     configuration_basename = 'slam_car.lua'
-
+    
     return LaunchDescription([
-        # 1. 发布 IMU 静态 TF (根据实际安装位置修改平移和旋转)
-    # 1. 发布 IMU 静态 TF (根据实际安装位置：后67.43mm, 右34.46mm, 上41mm)
-    # 1. 发布 IMU 静态 TF (精确安装位置：后67.43mm, 右34.46mm, 上41mm)
-    # ROS坐标系: X前, Y左, Z上 => 偏移: x=-0.06743, y=-0.03446, z=0.041
-    Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=['-0.06743', '-0.03446', '0.041', '0', '0', '0', 'base_link', 'imu_link']
-    ),
-Node(
-    package='tf2_ros',
-    executable='static_transform_publisher',
-    arguments=[
-        '0.06',  # x平移（前方60mm，+0.06m）
-        '0',     # y平移（中心线上，0m）
-        '0.134',     # z平移（高度一致，0m）
-        '0',  # roll（绕x轴0°，弧度）
-        '0',     # pitch（绕y轴0°）
-        '3.1416',     # yaw（绕z轴0°）
-        'base_link',  # 父坐标系
-        'laser_frame' # 子坐标系
-    ]
-),
+        # ========================================================================
+        # 1. 发布 IMU 静态 TF (精确物理安装位置)
+        # 物理位置: 后侧 6mm, 右侧 41mm, 距底盘 12mm
+        # ROS坐标系(父): X前, Y左, Z上  => 偏移: x=-0.006, y=-0.041, z=0.012
+        # 旋转关系: IMU物理方向(X右, Y前, Z上) 相当于 ROS标准方向 绕Z轴旋转 -90度
+        # ========================================================================
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '-0.006',   # x: 后侧 6mm (-0.006m)
+                '-0.041',   # y: 右侧 41mm (ROS Y轴向左为正，故右侧为负)
+                '0.012',    # z: 距底盘 12mm (+0.012m)
+                '-1.5708',  # yaw: 绕 Z 轴旋转 -90度 (即 -π/2)，匹配 X右Y前 到 X前Y左 的转换
+                '0.0',      # pitch
+                '0.0',      # roll
+                'base_link',# 父坐标系
+                'imu_link'  # 子坐标系
+            ]
+        ),
 
-    Node(
+        # ========================================================================
+        # 2. 发布 激光雷达 静态 TF (精确物理安装位置)
+        # 物理位置: 正上方，距底盘 136mm (假设前后左右无偏移，均在中心线上)
+        # ========================================================================
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '0.0',      # x: 前后无偏移
+                '0.0',      # y: 左右无偏移
+                '0.136',    # z: 距底盘 136mm (+0.136m)
+                '0.0',      # yaw: 默认雷达朝前 (X轴朝前)。⚠️如果雷达实际朝后安装，请改为 3.1416
+                '0.0',      # pitch
+                '0.0',      # roll
+                'base_link',# 父坐标系
+                'laser_frame' # 子坐标系 (需与雷达驱动发布的 frame_id 保持一致)
+            ]
+        ),
+
+        # ========================================================================
+        # 3. Cartographer 节点
+        # ========================================================================
+        Node(
             package='cartographer_ros',
             executable='cartographer_node',
             name='cartographer_node',
@@ -45,13 +64,15 @@ Node(
             arguments=['-configuration_directory', configuration_directory,
                        '-configuration_basename', configuration_basename],
             remappings=[
-                ('scan', '/scan'),          # 订阅你的激光话题
-                ('imu', '/imu/data'),        # 订阅你的 IMU 话题
-                ('odom', '/odom') 
+                ('scan', '/scan'),          # 订阅激光话题
+                ('imu', '/imu/data'),       # 订阅 IMU 话题
+                ('odom', '/odom')           # 订阅里程计话题 (若 lua 中 use_odometry=true)
             ]
         ),
 
-        # 3. 启动地图栅格化节点 (将 Cartographer 的 submap 转为 /map 话题供 RViz 显示)
+        # ========================================================================
+        # 4. 启动地图栅格化节点
+        # ========================================================================
         Node(
             package='cartographer_ros',
             executable='cartographer_occupancy_grid_node',
